@@ -1,0 +1,34 @@
+[
+  {
+    "name": "request-to-driver",
+    "message": {
+      "eventName": "bookingTrip:Request",
+      "target": "driver-001",
+      "payload": {
+        "driverId": "driver-001",
+        "data": "trip-001"
+      }
+    },
+    "expect": {
+      "socket": "driver",
+      "eventName": "bookingTrip:Request"
+    }
+  },
+  {
+    "name": "completed-to-customer",
+    "message": {
+      "eventName": "bookingTrip:Completed",
+      "target": "customer-001",
+      "payload": {
+        "data": {
+          "tripId": "trip-001",
+          "status": "Completed"
+        }
+      }
+    },
+    "expect": {
+      "socket": "customer",
+      "eventNamePrefix": "bookingTrip:Completed:trip-001"
+    }
+  }
+]
