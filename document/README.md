@@ -1,38 +1,53 @@
-# Tài liệu SocketServer
+# Tai lieu Socket Service
 
-Tài liệu này mô tả đầy đủ cho SocketServer của BeChill (tính năng socket realtime).
+Cap nhat: 2026-05-20. Bo tai lieu nay duoc cap nhat theo source hien tai cua repo Node.js Socket.IO service. Moi phan deu co dan chung file/function cu the va muc "Chua tim thay trong source".
 
-## Mục lục
+## Bo tai lieu source-audit hien tai
 
-- [01 - Tổng quan project](01-project-overview.md)
-- [02 - Kiến trúc hệ thống](02-architecture.md)
-- [03 - Logic nghiệp vụ realtime](03-business-logic-realtime.md)
-- [04 - API endpoint và event contracts](04-api-endpoints-and-event-contracts.md)
-- [05 - Thiết kế lại project theo kiến trúc hoàn chỉnh](05-target-project-architecture.md)
-- [06 - Lộ trình migrate sang kiến trúc mới](06-migration-roadmap.md)
-- [07 - Architecture Decision Records](07-architecture-decision-records.md)
-- [08 - Đánh giá hoàn thiện và kế hoạch đóng gap](08-completion-assessment-and-gap-closure.md)
-- [09 - Checklist parity server.js và runtime module hóa](09-parity-checklist-serverjs-vs-modular.md)
-- [10 - Phase 6 monitoring, metrics, JWT policy và validation](10-phase6-monitoring-metrics-and-validation.md)
-- [11 - Phase 6 observability dashboard và alert rules](11-phase6-observability-dashboard-and-alerts.md)
+- [Overview](01-project-overview.md)
+- [Business Domain Realtime](03-business-logic-realtime.md)
+- [Architecture](02-architecture.md)
+- [API Routes And Event Contracts](04-api-endpoints-and-event-contracts.md)
+- [Data Flow](data-flow.md)
+- [Auth And Security](auth-security.md)
+- [Config And Environment](config-env.md)
+- [Developer Guide](developer-guide.md)
+- [Risk And Improvement](risk-and-improvement.md)
+- [Testing And Compliance Checklist](testing-compliance-checklist.md)
 
-## Trạng thái tài liệu
+## Tai lieu ke hoach/migration da co tu truoc
 
-- Bộ tài liệu đã được chuẩn hóa theo kiến trúc đích và lộ trình migrate.
-- Runtime production hiện tại vẫn là `server.js`.
-- Runtime module hóa thử nghiệm nằm trong `src/`.
-- Trạng thái hoàn thiện thực tế và điều kiện cutover được tổng hợp tại `document/08-completion-assessment-and-gap-closure.md`.
-- Theo dõi tiến độ phase tại `document/06-migration-roadmap.md` (mục `Bảng tracking phase`).
+Cac file sau van duoc giu lai de tham chieu lich su migration/phase:
 
-## Chạy thử runtime module hóa
+- [05 - Target project architecture](05-target-project-architecture.md)
+- [06 - Migration roadmap](06-migration-roadmap.md)
+- [07 - Architecture decision records](07-architecture-decision-records.md)
+- [08 - Completion assessment and gap closure](08-completion-assessment-and-gap-closure.md)
+- [09 - Parity checklist server.js vs modular](09-parity-checklist-serverjs-vs-modular.md)
+- [10 - Phase 6 monitoring, metrics and validation](10-phase6-monitoring-metrics-and-validation.md)
+- [11 - Phase 6 observability dashboard and alerts](11-phase6-observability-dashboard-and-alerts.md)
 
-- `npm run start:modular`: chạy runtime module hóa.
-- `npm run dev:modular`: chạy runtime module hóa với nodemon.
+## Nguon source chinh
 
-## Nguồn tham chiếu chính
+- `server.js`
+- `src/index.js`
+- `src/app/createRuntime.js`
+- `src/transports/http/registerHttpRoutes.js`
+- `src/transports/socket/registerNamespaces.js`
+- `src/transports/socket/registerSocketFlows.js`
+- `src/transports/redis/subscribeBackendEvents.js`
+- `src/modules/**`
+- `src/infrastructure/**`
+- `src/shared/**`
+- `logger.js`
+- `package.json`
+- `test/**/*.test.js`
+- `scripts/phase6/*.js`
 
-- [server.js](../server.js)
-- [logger.js](../logger.js)
-- [README.md](../README.md)
-- [package.json](../package.json)
-- [AGENTS.md](../AGENTS.md)
+## Ghi chu quan trong
+
+- `server.js` hien load `./src/index`, nen runtime chinh la modular runtime trong `src/`.
+- Redis la state/cache/pub-sub layer chinh cua socket runtime.
+- SQL hien la optional connectivity/config layer; neu SQL unavailable, service log/Telegram va Redis TTL fallback bi cap toi da 7 ngay.
+- Runtime doc `REDIS_CHANNEL`, default `bechill:events`.
+- Tai lieu khong lap lai gia tri secret trong `.env.*`; cac file env co ve chua secret that va nen duoc xu ly nhu thong tin nhay cam.

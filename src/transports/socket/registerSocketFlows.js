@@ -33,9 +33,19 @@ function registerSocketFlows({
 
   function parseAuthFromHandshake(socket) {
     const headers = socket.handshake.headers || {};
-    const rawAuth = headers["authorization"] || headers["Authorization"];
+    const auth = socket.handshake.auth || {};
+    const authToken = auth.token || auth.accessToken;
+    const rawAuth =
+      headers["authorization"] ||
+      headers["Authorization"] ||
+      (authToken && String(authToken).startsWith("Bearer ")
+        ? authToken
+        : authToken
+          ? `Bearer ${authToken}`
+          : null);
     const token = authService.parseBearer(rawAuth);
-    const userId = authService.readUserId(headers);
+    const userId =
+      authService.readUserId(headers) || auth.userId || auth.user_id;
 
     if (!token) {
       return { error: "UnAuthorization: accessToken invalid" };

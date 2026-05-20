@@ -35,11 +35,11 @@ function createNamespace(name) {
   };
 }
 
-function createSocket(headers = {}) {
+function createSocket(headers = {}, auth = {}) {
   socketIdCounter += 1;
   const socket = {
     id: `s-${socketIdCounter}`,
-    handshake: { headers, auth: {} },
+    handshake: { headers, auth },
     rooms: new Set([`s-${socketIdCounter}`]),
     emitted: [],
     handlers: new Map(),
@@ -237,6 +237,24 @@ test("driver flow: middleware auth, joinTrip, updateLocation, cleanup", async ()
   await driverSocket.trigger("disconnect");
   assert.equal(deps.registry.drivers.has("driver-1"), false);
   assert.equal(deps.locationService.cleared.includes(driverSocket.id), true);
+});
+
+test("driver middleware accepts browser handshake auth token and userId", async () => {
+  const deps = createBaseDeps();
+  const driverSocket = createSocket(
+    {},
+    {
+      token: "browser-token",
+      userId: "driver-browser",
+    },
+  );
+
+  await connectWithMiddleware(deps.namespaces.drivers, driverSocket);
+
+  assert.equal(driverSocket.userId, "driver-browser");
+  assert.equal(driverSocket.accessToken, "browser-token");
+  assert.equal(driverSocket.userType, "driver");
+  assert.equal(deps.registry.drivers.get("driver-browser"), driverSocket);
 });
 
 test("legacy flow requires authenticate before updateLocation", async () => {

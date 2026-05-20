@@ -1,61 +1,105 @@
-﻿const test = require('node:test');
+﻿const test = require("node:test");
 
 test("POST /emit/user requires secret or JWT", async () => {
   const app = createAppMock();
   let called = false;
   const mockAuthService = {
     userSecret: "testsecret",
-    parseBearer: (h) => h === "Bearer validtoken" ? "validtoken" : null,
-    verifyUserToken: (token) => token === "validtoken" ? { valid: true, reason: "ok" } : { valid: false, reason: "invalid_token" },
+    parseBearer: (h) => (h === "Bearer validtoken" ? "validtoken" : null),
+    verifyUserToken: (token) =>
+      token === "validtoken"
+        ? { valid: true, reason: "ok" }
+        : { valid: false, reason: "invalid_token" },
   };
   registerHttpRoutes({
     app,
     registry: { counters: () => ({}) },
     socketEmitter: {
-      async emitToUser() { called = true; return { emitted: true, socketIds: ["s1"] }; },
+      async emitToUser() {
+        called = true;
+        return { emitted: true, socketIds: ["s1"] };
+      },
     },
     loggerPort: createLoggerMock(),
-    runtimeMetrics: { recordHttpRequest() {}, snapshot() { return {}; } },
+    runtimeMetrics: {
+      recordHttpRequest() {},
+      snapshot() {
+        return {};
+      },
+    },
     authService: mockAuthService,
   });
   const handler = app.routes.post.get("/emit/user");
   // No secret
   let res = createResMock();
-  await handler({ body: { userType: "driver", userId: "d1", eventName: "evt", payload: {} } }, res);
+  await handler(
+    {
+      body: { userType: "driver", userId: "d1", eventName: "evt", payload: {} },
+    },
+    res,
+  );
   assert.equal(res.statusCode, 401);
   assert.match(res.body.error, /Unauthorized/);
   // Invalid secret
   res = createResMock();
-  await handler({ headers: { "x-api-key": "bad" }, body: { userType: "driver", userId: "d1", eventName: "evt", payload: {} } }, res);
+  await handler(
+    {
+      headers: { "x-api-key": "bad" },
+      body: { userType: "driver", userId: "d1", eventName: "evt", payload: {} },
+    },
+    res,
+  );
   assert.equal(res.statusCode, 401);
   // Valid secret
   res = createResMock();
-  await handler({ headers: { "x-api-key": "testsecret" }, body: { userType: "driver", userId: "d1", eventName: "evt", payload: {} } }, res);
+  await handler(
+    {
+      headers: { "x-api-key": "testsecret" },
+      body: { userType: "driver", userId: "d1", eventName: "evt", payload: {} },
+    },
+    res,
+  );
   assert.equal(res.statusCode, 200);
   // Valid JWT
   res = createResMock();
-  await handler({ headers: { authorization: "Bearer validtoken" }, body: { userType: "driver", userId: "d1", eventName: "evt", payload: {} } }, res);
+  await handler(
+    {
+      headers: { authorization: "Bearer validtoken" },
+      body: { userType: "driver", userId: "d1", eventName: "evt", payload: {} },
+    },
+    res,
+  );
   assert.equal(res.statusCode, 200);
   assert.equal(called, true);
 });
-
 
 test("POST /emit/trip requires secret or JWT", async () => {
   const app = createAppMock();
   let called = false;
   const mockAuthService = {
     userSecret: "testsecret",
-    parseBearer: (h) => h === "Bearer validtoken" ? "validtoken" : null,
-    verifyUserToken: (token) => token === "validtoken" ? { valid: true, reason: "ok" } : { valid: false, reason: "invalid_token" },
+    parseBearer: (h) => (h === "Bearer validtoken" ? "validtoken" : null),
+    verifyUserToken: (token) =>
+      token === "validtoken"
+        ? { valid: true, reason: "ok" }
+        : { valid: false, reason: "invalid_token" },
   };
   registerHttpRoutes({
     app,
     registry: { counters: () => ({}) },
     socketEmitter: {
-      async emitToTrip() { called = true; return { emitted: true, room: "trip_1" }; },
+      async emitToTrip() {
+        called = true;
+        return { emitted: true, room: "trip_1" };
+      },
     },
     loggerPort: createLoggerMock(),
-    runtimeMetrics: { recordHttpRequest() {}, snapshot() { return {}; } },
+    runtimeMetrics: {
+      recordHttpRequest() {},
+      snapshot() {
+        return {};
+      },
+    },
     authService: mockAuthService,
   });
   const handler = app.routes.post.get("/emit/trip");
@@ -65,32 +109,54 @@ test("POST /emit/trip requires secret or JWT", async () => {
   assert.equal(res.statusCode, 401);
   // Valid secret
   res = createResMock();
-  await handler({ headers: { "x-api-key": "testsecret" }, body: { tripId: "t1", eventName: "evt", payload: {} } }, res);
+  await handler(
+    {
+      headers: { "x-api-key": "testsecret" },
+      body: { tripId: "t1", eventName: "evt", payload: {} },
+    },
+    res,
+  );
   assert.equal(res.statusCode, 200);
   // Valid JWT
   res = createResMock();
-  await handler({ headers: { authorization: "Bearer validtoken" }, body: { tripId: "t1", eventName: "evt", payload: {} } }, res);
+  await handler(
+    {
+      headers: { authorization: "Bearer validtoken" },
+      body: { tripId: "t1", eventName: "evt", payload: {} },
+    },
+    res,
+  );
   assert.equal(res.statusCode, 200);
   assert.equal(called, true);
 });
-
 
 test("POST /emit/broadcast requires secret or JWT", async () => {
   const app = createAppMock();
   let called = false;
   const mockAuthService = {
     userSecret: "testsecret",
-    parseBearer: (h) => h === "Bearer validtoken" ? "validtoken" : null,
-    verifyUserToken: (token) => token === "validtoken" ? { valid: true, reason: "ok" } : { valid: false, reason: "invalid_token" },
+    parseBearer: (h) => (h === "Bearer validtoken" ? "validtoken" : null),
+    verifyUserToken: (token) =>
+      token === "validtoken"
+        ? { valid: true, reason: "ok" }
+        : { valid: false, reason: "invalid_token" },
   };
   registerHttpRoutes({
     app,
     registry: { counters: () => ({}) },
     socketEmitter: {
-      async emitBroadcast() { called = true; return { emitted: true }; },
+      async emitBroadcast() {
+        called = true;
+        return { emitted: true };
+      },
     },
     loggerPort: createLoggerMock(),
-    runtimeMetrics: { recordHttpRequest() {}, snapshot() { return {}; } },
+    runtimeMetrics: {
+      recordHttpRequest() {},
+      snapshot() {
+        return {};
+      },
+    },
     authService: mockAuthService,
   });
   const handler = app.routes.post.get("/emit/broadcast");
@@ -100,11 +166,23 @@ test("POST /emit/broadcast requires secret or JWT", async () => {
   assert.equal(res.statusCode, 401);
   // Valid secret
   res = createResMock();
-  await handler({ headers: { "x-api-key": "testsecret" }, body: { eventName: "evt", payload: {} } }, res);
+  await handler(
+    {
+      headers: { "x-api-key": "testsecret" },
+      body: { eventName: "evt", payload: {} },
+    },
+    res,
+  );
   assert.equal(res.statusCode, 200);
   // Valid JWT
   res = createResMock();
-  await handler({ headers: { authorization: "Bearer validtoken" }, body: { eventName: "evt", payload: {} } }, res);
+  await handler(
+    {
+      headers: { authorization: "Bearer validtoken" },
+      body: { eventName: "evt", payload: {} },
+    },
+    res,
+  );
   assert.equal(res.statusCode, 200);
   assert.equal(called, true);
 });
@@ -124,8 +202,21 @@ function createAppMock() {
     get(path, handler) {
       this.routes.get.set(path, handler);
     },
-    post(path, handler) {
-      this.routes.post.set(path, handler);
+    post(path, ...handlers) {
+      const composed = async (req, res) => {
+        let index = 0;
+        const next = async (err) => {
+          if (err) throw err;
+          const handler = handlers[index++];
+          if (!handler) return;
+          if (handler.length === 3) {
+            return handler(req, res, next);
+          }
+          return handler(req, res);
+        };
+        await next();
+      };
+      this.routes.post.set(path, composed);
     },
   };
 }
@@ -167,7 +258,6 @@ function createLoggerMock() {
   };
 }
 
-
 test("GET /health returns counters", () => {
   const app = createAppMock();
   const registry = {
@@ -204,7 +294,6 @@ test("GET /health returns counters", () => {
   });
 });
 
-
 test("GET /metrics returns prometheus output", () => {
   const app = createAppMock();
   const runtimeMetrics = {
@@ -233,7 +322,6 @@ test("GET /metrics returns prometheus output", () => {
   assert.equal(res.headers["Content-Type"], "text/plain; version=0.0.4");
   assert.equal(res.body, "socket_events_total 1\n");
 });
-
 
 test("GET /dashboard returns html page", () => {
   const app = createAppMock();
@@ -276,7 +364,6 @@ test("GET /dashboard returns html page", () => {
   assert.match(res.body, /alertBanner/);
 });
 
-
 test("POST /driver/event validates required fields", async () => {
   const app = createAppMock();
   registerHttpRoutes({
@@ -305,7 +392,6 @@ test("POST /driver/event validates required fields", async () => {
   assert.equal(resMissingTrip.statusCode, 400);
   assert.equal(resMissingTrip.body.error, "trip_id invalid");
 });
-
 
 test("POST /driver/event emits successfully", async () => {
   const app = createAppMock();
@@ -346,9 +432,16 @@ test("POST /driver/event emits successfully", async () => {
   assert.equal(logger.infoCalls.length, 1);
 });
 
-
 test("POST /emit/user validates and emits", async () => {
   const app = createAppMock();
+  const authService = {
+    userSecret: "testsecret",
+    parseBearer: (h) => (h === "Bearer validtoken" ? "validtoken" : null),
+    verifyUserToken: (token) =>
+      token === "validtoken"
+        ? { valid: true, reason: "ok" }
+        : { valid: false, reason: "invalid_token" },
+  };
 
   registerHttpRoutes({
     app,
@@ -363,6 +456,13 @@ test("POST /emit/user validates and emits", async () => {
       },
     },
     loggerPort: createLoggerMock(),
+    runtimeMetrics: {
+      recordHttpRequest() {},
+      snapshot() {
+        return {};
+      },
+    },
+    authService,
   });
 
   const handler = app.routes.post.get("/emit/user");
@@ -370,6 +470,7 @@ test("POST /emit/user validates and emits", async () => {
 
   await handler(
     {
+      headers: { "x-api-key": "testsecret" },
       body: {
         userType: "driver",
         userId: "driver-1",
@@ -385,9 +486,16 @@ test("POST /emit/user validates and emits", async () => {
   assert.equal(res.body.data.socketCount, 2);
 });
 
-
 test("POST /emit/trip validates and emits", async () => {
   const app = createAppMock();
+  const authService = {
+    userSecret: "testsecret",
+    parseBearer: (h) => (h === "Bearer validtoken" ? "validtoken" : null),
+    verifyUserToken: (token) =>
+      token === "validtoken"
+        ? { valid: true, reason: "ok" }
+        : { valid: false, reason: "invalid_token" },
+  };
 
   registerHttpRoutes({
     app,
@@ -401,6 +509,13 @@ test("POST /emit/trip validates and emits", async () => {
       },
     },
     loggerPort: createLoggerMock(),
+    runtimeMetrics: {
+      recordHttpRequest() {},
+      snapshot() {
+        return {};
+      },
+    },
+    authService,
   });
 
   const handler = app.routes.post.get("/emit/trip");
@@ -408,6 +523,7 @@ test("POST /emit/trip validates and emits", async () => {
 
   await handler(
     {
+      headers: { "x-api-key": "testsecret" },
       body: {
         tripId: "trip-2",
         eventName: "bookingTrip:ToPickUp",
@@ -422,9 +538,16 @@ test("POST /emit/trip validates and emits", async () => {
   assert.equal(res.body.data.room, "trip_trip-2");
 });
 
-
 test("POST /emit/broadcast validates and emits", async () => {
   const app = createAppMock();
+  const authService = {
+    userSecret: "testsecret",
+    parseBearer: (h) => (h === "Bearer validtoken" ? "validtoken" : null),
+    verifyUserToken: (token) =>
+      token === "validtoken"
+        ? { valid: true, reason: "ok" }
+        : { valid: false, reason: "invalid_token" },
+  };
 
   registerHttpRoutes({
     app,
@@ -439,6 +562,13 @@ test("POST /emit/broadcast validates and emits", async () => {
       },
     },
     loggerPort: createLoggerMock(),
+    runtimeMetrics: {
+      recordHttpRequest() {},
+      snapshot() {
+        return {};
+      },
+    },
+    authService,
   });
 
   const handler = app.routes.post.get("/emit/broadcast");
@@ -446,6 +576,7 @@ test("POST /emit/broadcast validates and emits", async () => {
 
   await handler(
     {
+      headers: { "x-api-key": "testsecret" },
       body: {
         eventName: "system:notice",
         payload: { message: "maintenance" },
@@ -460,7 +591,6 @@ test("POST /emit/broadcast validates and emits", async () => {
   assert.equal(res.body.success, true);
   assert.equal(res.body.data.userType, "customer");
 });
-
 
 test("POST /customer/event returns socketCount", async () => {
   const app = createAppMock();
@@ -491,7 +621,6 @@ test("POST /customer/event returns socketCount", async () => {
   assert.equal(res.body.data.socketCount, 2);
 });
 
-
 test("POST /customer/event returns 404 when offline", async () => {
   const app = createAppMock();
 
@@ -520,4 +649,3 @@ test("POST /customer/event returns 404 when offline", async () => {
   assert.equal(res.statusCode, 404);
   assert.equal(res.body.error, "user_id is not exist");
 });
-

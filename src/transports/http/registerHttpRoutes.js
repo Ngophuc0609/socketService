@@ -5,38 +5,44 @@ function registerHttpRoutes({
   loggerPort,
   runtimeMetrics,
   authService,
+  sqlStatus,
 }) {
-    // Middleware to require secret key or JWT for backend emit APIs
-    function requireBackendSecret(req, res, next) {
-      // Accept either x-api-key header or Authorization: Bearer <token>
-      const apiKey = req.headers["x-api-key"] || req.headers["x-api_key"];
-      const bearer = req.headers["authorization"];
-      const userSecret = (authService && authService.userSecret) || undefined;
-      let valid = false;
-      let reason = "";
+  // Middleware to require secret key or JWT for backend emit APIs
+  function requireBackendSecret(req, res, next) {
+    // Accept either x-api-key header or Authorization: Bearer <token>
+    const headers = req.headers || {};
+    const apiKey = headers["x-api-key"] || headers["x-api_key"];
+    const bearer = headers["authorization"];
+    const userSecret = (authService && authService.userSecret) || undefined;
+    let valid = false;
+    let reason = "";
 
-      if (userSecret && bearer) {
-        // Validate JWT
-        const token = authService.parseBearer(bearer);
-        const result = authService.verifyUserToken(token);
-        valid = result.valid;
-        reason = result.reason;
-      } else if (userSecret && apiKey) {
-        // Accept raw secret for trusted backend
-        valid = apiKey === userSecret;
-        reason = valid ? "ok" : "invalid_api_key";
-      } else if (!userSecret && (apiKey || bearer)) {
-        // If no secret configured, allow for backward compatibility
-        valid = true;
-        reason = "secret_not_configured";
-      }
-
-      if (!valid) {
-        record(req.path, 401);
-        return sendError(res, 401, `Unauthorized: ${reason || "missing or invalid secret"}`);
-      }
-      next();
+    if (userSecret && bearer) {
+      // Validate JWT
+      const token = authService.parseBearer(bearer);
+      const result = authService.verifyUserToken(token);
+      valid = result.valid;
+      reason = result.reason;
+    } else if (userSecret && apiKey) {
+      // Accept raw secret for trusted backend
+      valid = apiKey === userSecret;
+      reason = valid ? "ok" : "invalid_api_key";
+    } else if (!userSecret && (apiKey || bearer)) {
+      // If no secret configured, allow for backward compatibility
+      valid = true;
+      reason = "secret_not_configured";
     }
+
+    if (!valid) {
+      record(req.path, 401);
+      return sendError(
+        res,
+        401,
+        `Unauthorized: ${reason || "missing or invalid secret"}`,
+      );
+    }
+    return next();
+  }
   function renderDashboardHtml() {
     return `<!doctype html>
 <html lang="en">
@@ -646,6 +652,14 @@ function registerHttpRoutes({
       status: "OK",
       timestamp: new Date().toISOString(),
       startedAt: metricsSnapshot ? metricsSnapshot.startedAt : undefined,
+      sql: sqlStatus
+        ? {
+            available: sqlStatus.available,
+            configured: sqlStatus.configured,
+            driver: sqlStatus.driver,
+            reason: sqlStatus.reason,
+          }
+        : undefined,
       connections: registry.counters(),
       metrics: metricsSnapshot ? metricsSnapshot.totals : undefined,
       metricsDetail: metricsSnapshot
@@ -654,6 +668,63 @@ function registerHttpRoutes({
             byHttpRoute: metricsSnapshot.byHttpRoute,
           }
         : undefined,
+    });
+  });
+
+  function serializeRegistryConnections(map) {
+    return Array.from(map.entries()).map(([userId, value]) => {
+      let socketIds = [];
+      if (Array.isArray(value)) {
+        socketIds = value.map((socket) => (socket && socket.id ? socket.id : socket));
+      } else if (value && value.id) {
+        socketIds = [value.id];
+      }
+      return { userId, socketIds };
+    });
+  }
+
+  function buildConnections(type) {
+    if (!type) {
+      return {
+        drivers: serializeRegistryConnections(registry.drivers),
+        customers: serializeRegistryConnections(registry.customers),
+        default: serializeRegistryConnections(registry.legacy),
+      };
+    }
+
+    switch (type.toLowerCase()) {
+      case "driver":
+      case "drivers":
+        return { drivers: serializeRegistryConnections(registry.drivers) };
+      case "customer":
+      case "customers":
+        return { customers: serializeRegistryConnections(registry.customers) };
+      case "default":
+      case "legacy":
+      case "user":
+        return { default: serializeRegistryConnections(registry.legacy) };
+      default:
+        return null;
+    }
+  }
+
+  app.get("/connections", (req, res) => {
+    record("/connections", 200);
+
+    const type = req.query.type;
+    const connections = buildConnections(type);
+    if (connections === null) {
+      record("/connections", 400);
+      return sendError(
+        res,
+        400,
+        "Invalid type. Supported values are driver, customer, default",
+      );
+    }
+
+    return sendSuccess(res, {
+      type: type || "all",
+      connections,
     });
   });
 
@@ -677,6 +748,14 @@ function registerHttpRoutes({
     const healthSnapshot = {
       status: "OK",
       startedAt: runtimeMetrics ? runtimeMetrics.snapshot().startedAt : null,
+      sql: sqlStatus
+        ? {
+            available: sqlStatus.available,
+            configured: sqlStatus.configured,
+            driver: sqlStatus.driver,
+            reason: sqlStatus.reason,
+          }
+        : null,
       connections: registry.counters(),
       metrics: runtimeMetrics ? runtimeMetrics.snapshot().totals : {},
       metricsDetail: runtimeMetrics

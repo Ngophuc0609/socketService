@@ -1,141 +1,141 @@
-# 04 - API endpoint và event contracts
+# 04 - API Routes And Event Contracts
 
-## HTTP API endpoints (Express)
+Cap nhat: 2026-05-20. Tai lieu nay ghi lai contract tim thay trong source hien tai.
 
-### Nhom A - Monitoring va van hanh
+## Dan chung source chinh
 
-### 1) GET /health
+| Nhom contract | File/function cu the |
+| --- | --- |
+| HTTP route registration | `src/transports/http/registerHttpRoutes.js:registerHttpRoutes()` |
+| Backend secret middleware | `src/transports/http/registerHttpRoutes.js:requireBackendSecret()` |
+| Socket event handlers | `src/transports/socket/registerSocketFlows.js:registerSocketFlows()` |
+| Emit helpers | `src/modules/connection/socketEmitterService.js:createSocketEmitterService()` |
+| Redis relay contract | `src/modules/relay/redisRelayService.js:relayGenericEvent()` |
+| Tests tham chieu | `test/transports/http/registerHttpRoutes.test.js`, `test/transports/socket/registerSocketFlows.test.js`, `test/modules/relay/redisRelayService.test.js` |
+| Postman collection | `postman_collection.json` |
 
-Mục đích:
-- Health check nhanh cho service va cung cap snapshot metrics phuc vu dashboard/soak test.
+## HTTP routes
 
-Use cases:
-- Kiem tra readiness trong preflight script.
-- Lay counters ket noi hien tai theo namespace.
-- Lay tong so event/requests de tinh delta theo thoi gian.
+Tat ca HTTP routes nam trong `registerHttpRoutes()`.
 
-Response 200 (mau):
+| Method | Path | Auth trong source | Handler behavior | Source |
+| --- | --- | --- | --- | --- |
+| `GET` | `/health` | Khong thay auth | Tra `status`, `timestamp`, registry counters, metrics snapshot. | `app.get("/health")` |
+| `GET` | `/connections` | Khong thay auth | Tra socket ids theo `type=driver|customer|default` hoac all. | `app.get("/connections")`, `buildConnections()` |
+| `GET` | `/metrics` | Khong thay auth | Tra Prometheus text tu `runtimeMetrics.toPrometheus()`. | `app.get("/metrics")` |
+| `GET` | `/dashboard` | Khong thay auth | Tra HTML dashboard fetch `/health` va `/metrics`. | `app.get("/dashboard")`, `renderDashboardHtml()` |
+| `POST` | `/driver/event` | Khong thay `requireBackendSecret` | Emit event den driver id trong header `user_id`/`userid`, payload la `trip_id`. | `app.post("/driver/event")` |
+| `POST` | `/customer/event` | Khong thay `requireBackendSecret` | Emit event den customer id trong header `user_id`/`userid`, payload la `trip_id`. | `app.post("/customer/event")` |
+| `POST` | `/emit/user` | `requireBackendSecret` | Emit den mot user `driver|customer`. | `app.post("/emit/user")` |
+| `POST` | `/emit/trip` | `requireBackendSecret` | Emit den room `trip_{tripId}` tren legacy/drivers/customers. | `app.post("/emit/trip")` |
+| `POST` | `/emit/broadcast` | `requireBackendSecret` | Broadcast theo `userType=all|driver|customer|admin` va optional `targetRoom`. | `app.post("/emit/broadcast")` |
 
-```json
-{
-  "status": "OK",
-  "timestamp": "2026-05-15T10:44:07.000Z",
-  "startedAt": "2026-05-15T10:44:07.000Z",
-  "connections": {
-    "drivers": 12,
-    "customers": 30,
-    "legacy": 2,
-    "admin": 1
-  },
-  "metrics": {
-    "socketConnections": 540,
-    "socketDisconnections": 494,
-    "socketEvents": 12600,
-    "redisMessages": 6150,
-    "redisInvalidMessages": 3,
-    "relayEvents": 6020,
-    "httpRequests": 980,
-    "httpErrors": 12
-  },
-  "metricsDetail": {
-    "byEvent": {
-      "bookingTrip:Started": 120,
-      "bookingTrip:Completed": 118
-    },
-    "byHttpRoute": {
-      "/health": { "total": 120, "errors": 0 },
-      "/emit/user": { "total": 85, "errors": 2 }
-    }
-  }
-}
-```
+## Response shape
 
-### 2) GET /metrics
+Helper source:
 
-Mục đích:
-- Expose metric theo dinh dang Prometheus de scrape bang Prometheus/Grafana.
+- Success: `sendSuccess(res, data)` tra `{ success: true, data }`.
+- Error: `sendError(res, statusCode, message)` tra `{ success: false, error: message }`.
 
-Headers:
-- Content-Type: `text/plain; version=0.0.4`
+Dan chung: `src/transports/http/registerHttpRoutes.js`.
 
-Metric chinh:
-- `socket_connections_active{namespace=...}`
+## Monitoring routes
+
+### `GET /health`
+
+Response gom:
+
+- `status: "OK"`.
+- `timestamp`: ISO now.
+- `startedAt`: tu metrics snapshot neu co.
+- `connections`: `registry.counters()`.
+- `metrics`: totals tu `runtimeMetrics.snapshot()`.
+- `metricsDetail.byEvent`, `metricsDetail.byHttpRoute`.
+
+Chua thay Redis ping trong route nay.
+
+### `GET /connections`
+
+Query:
+
+- Khong truyen `type`: tra `drivers`, `customers`, `default`.
+- `type=driver|drivers`: chi tra drivers.
+- `type=customer|customers`: chi tra customers.
+- `type=default|legacy|user`: chi tra default legacy.
+- Gia tri khac: 400 `"Invalid type. Supported values are driver, customer, default"`.
+
+Dan chung: `serializeRegistryConnections()`, `buildConnections()`.
+
+### `GET /metrics`
+
+Content-Type: `text/plain; version=0.0.4`.
+
+Metric names:
+
+- `socket_connections_active{namespace="..."}`
 - `socket_events_total`
 - `redis_messages_total`
 - `redis_invalid_messages_total`
 - `relay_events_total`
-- `http_requests_total{route=...}`
-- `http_request_errors_total{route=...}`
+- `http_requests_total{route="..."}`
+- `http_request_errors_total{route="..."}`
 
-### 3) GET /dashboard
+Dan chung: `src/infrastructure/monitoring/runtimeMetrics.js:toPrometheus()`.
 
-Mục đích:
-- Tra ve dashboard HTML built-in de theo doi metrics real-time.
+## Backend HTTP emit routes
 
-Hien co:
-- Sparkline mini theo 5s cho socket/redis/http.
-- Namespace filter (all/drivers/customers/legacy/admin).
-- Banner canh bao mau khi HTTP error rate vuot nguong.
+### `POST /driver/event`
 
-### Nhom B - Legacy push APIs (giu compatibility)
+Headers:
 
-### 4) POST /driver/event
+- `user_id` hoac `userid`: driver id.
 
-Mục đích:
-- Emit event toi mot driver cu the.
+Body:
 
-Input:
-- Header:
-  - `user_id`: driver user id
-- Body JSON:
-  - `trip_id`: string
-  - `socket_event`: string
+```json
+{
+  "trip_id": "trip-1",
+  "socket_event": "bookingTrip:Started"
+}
+```
 
-Validation:
-- `user_id` bat buoc
-- `trip_id` bat buoc
-- `socket_event` bat buoc
+Validation source:
 
-Behavior:
-- Tim socket driver (uu tien memory, fallback Redis).
-- Emit event voi payload = `trip_id`.
+- Thieu user id -> 400 `"user_id invalid"`.
+- Thieu `trip_id` -> 400 `"trip_id invalid"`.
+- Thieu `socket_event` -> 400 `"socket_event invalid"`.
+- Khong emit duoc -> 404 `"user_id is not exist"`.
 
-Response:
-- 200: `{ success: true, data: { userId, tripId, socketEvent } }`
-- 400: input invalid
-- 404: `user_id is not exist`
-- 500: internal server error
+Emit source: `socketEmitter.emitToDriver(userId, socketEvent, tripId)`.
 
-### 5) POST /customer/event
+### `POST /customer/event`
 
-Mục đích:
-- Emit event toi tat ca socket cua mot customer.
+Headers:
 
-Input:
-- Header:
-  - `user_id`: customer user id
-- Body JSON:
-  - `trip_id`: string
-  - `socket_event`: string
+- `user_id` hoac `userid`: customer id.
 
-Behavior:
-- Lay danh sach socket customer tu in-memory map va fallback Redis socket mapping.
-- Emit den moi socket voi payload = `trip_id`.
+Body:
 
-Response:
-- 200: `{ success: true, data: { userId, tripId, socketEvent, socketCount } }`
-- 400: input invalid
-- 404: `user_id is not exist`
-- 500: internal server error
+```json
+{
+  "trip_id": "trip-2",
+  "socket_event": "bookingTrip:AcceptedTrip"
+}
+```
 
-### Nhom C - Backend push APIs (de xuat moi, khuyen nghi su dung)
+Validation tuong tu `/driver/event`. Thanh cong tra them `socketCount`.
 
-### 6) POST /emit/user
+Emit source: `socketEmitter.emitToCustomer(userId, socketEvent, tripId)`.
 
-Mục đích:
-- API tong quat de backend push event den 1 user cu the (driver/customer).
+### `POST /emit/user`
 
-Input body:
+Auth:
+
+- `x-api-key` bang `JWT_SECRET`, hoac
+- `Authorization: Bearer <JWT>` verify bang user secret, hoac
+- neu user secret khong cau hinh ma co api key/bearer, source cho phep vi backward compatibility.
+
+Body:
 
 ```json
 {
@@ -143,199 +143,180 @@ Input body:
   "userId": "driver-123",
   "eventName": "bookingTrip:Started",
   "payload": {
-    "tripId": "trip-1",
-    "status": "started"
+    "tripId": "trip-1"
   }
 }
 ```
 
 Validation:
-- `userType` bat buoc, chi nhan `driver|customer`
-- `userId` bat buoc
-- `eventName` bat buoc
 
-Behavior:
-- Route den namespace phu hop theo `userType`.
-- Fallback Redis socket mapping neu in-memory khong co.
+- `userType` chi nhan `driver|customer`.
+- `userId` bat buoc.
+- `eventName` bat buoc.
+- User offline/khong co mapping -> 404.
 
-Response:
-- 200: `{ success: true, data: { userType, userId, eventName, socketCount } }`
-- 400: validation fail
-- 404: user offline/khong ton tai mapping
-- 500: internal server error
+Dan chung: `requireBackendSecret()`, `emitToUserCompat()`, `socketEmitter.emitToUser()`.
 
-### 7) POST /emit/trip
+### `POST /emit/trip`
 
-Mục đích:
-- Push event den room trip (`trip_{tripId}`) cho tat ca socket lien quan (legacy + drivers + customers).
+Auth: `requireBackendSecret`.
 
-Input body:
+Body:
 
 ```json
 {
   "tripId": "trip-1",
   "eventName": "bookingTrip:ToPickUp",
   "payload": {
-    "tripId": "trip-1",
     "eta": 180
   }
 }
 ```
 
 Validation:
-- `tripId` bat buoc
-- `eventName` bat buoc
 
-Response:
-- 200: `{ success: true, data: { tripId, eventName, room } }`
-- 400: validation fail
-- 500: internal server error
+- `tripId` bat buoc.
+- `eventName` bat buoc.
+- Neu emitter khong support `emitToTrip`, tra 501.
 
-### 8) POST /emit/broadcast
+Emit room: `trip_{tripId}`.
 
-Mục đích:
-- Push thong bao broadcast cho nhieu client cung luc.
+### `POST /emit/broadcast`
 
-Input body:
+Auth: `requireBackendSecret`.
+
+Body:
 
 ```json
 {
   "eventName": "system:notice",
   "payload": {
-    "message": "maintenance in 10 minutes"
+    "message": "maintenance"
   },
   "userType": "all",
   "targetRoom": null
 }
 ```
 
-Ghi chu:
-- `userType`: `all|driver|customer|admin`
-- `targetRoom`: optional; neu co se emit theo room, neu null se emit toan bo namespace tuong ung.
+Validation:
 
-Response:
-- 200: `{ success: true, data: { eventName, userType, targetRoom } }`
-- 400: validation fail
-- 500: internal server error
+- `userType`: `all|driver|customer|admin`.
+- `eventName` bat buoc.
+- Neu emitter khong support `emitBroadcast`, tra 501.
 
-## Khuyen nghi de backend goi API push on dinh
+## Socket namespace contracts
 
-- Dung idempotency key tai backend cho cac event quan trong (tranh push duplicate khi retry).
-- Luon kem `eventName` theo convention domain (`bookingTrip:*`, `system:*`).
-- Gioi han tan suat retry va theo doi 404 ratio cua `/emit/user` de phat hien ty le offline cao.
-- Khi can route theo room, uu tien `/emit/trip` hoac `/emit/broadcast` + `targetRoom`.
+### Namespace `/drivers`
 
-## Socket namespaces và event map
+Handshake headers:
 
-## Namespace /
+- `authorization` hoac `Authorization`: `Bearer <token>`.
+- `user_id` hoac `userId`.
 
-Client -> Server:
-- authenticate { userId, userType, token }
-- joinTrip { tripId }
-- leaveTrip { tripId }
-- updateLocation { latitude, longitude, tripId }
+Browser demo fallback:
 
-Server -> Client:
-- authenticated
-- joinedTrip
-- leftTrip
-- locationUpdate
-- error
+- `handshake.auth.token` hoac `handshake.auth.accessToken`.
+- `handshake.auth.userId` hoac `handshake.auth.user_id`.
 
-## Namespace /drivers
+Client -> server:
 
-Handshake yêu cầu headers:
-- Authorization: Bearer <token>
-- user_id hoặc userId
+- `joinTrip` `{ "tripId": "trip-1" }`
+- `leaveTrip` `{ "tripId": "trip-1" }`
+- `updateLocation` `{ "latitude": 10.1, "longitude": 106.1, "tripId": "trip-1" }`
 
-Client -> Server:
-- joinTrip { tripId }
-- leaveTrip { tripId }
-- updateLocation { latitude, longitude, tripId }
+Server -> client:
 
-Server -> Client:
-- joinedTrip
-- leftTrip
-- locationUpdate
-- dynamic trip events (bookingTrip:* theo tripId)
-- error
+- `joinedTrip` `{ tripId, room }`
+- `leftTrip` `{ tripId }`
+- `locationUpdate` `{ userId, userType, latitude, longitude, timestamp }`
+- `error` `{ message }`
+- Dynamic backend events nhu `bookingTrip:*`.
 
-## Namespace /customers
+### Namespace `/customers`
 
-Handshake yêu cầu headers:
-- Authorization: Bearer <token>
-- user_id hoặc userId
+Handshake va events giong `/drivers`, nhung registry cho phep nhieu sockets cho cung `userId`.
 
-Client -> Server:
-- joinTrip { tripId }
-- leaveTrip { tripId }
-- updateLocation { latitude, longitude, tripId }
+### Namespace `/`
 
-Server -> Client:
-- joinedTrip
-- leftTrip
-- locationUpdate
-- dynamic trip events (bookingTrip:* theo tripId)
-- error
+Client -> server:
 
-## Namespace /admin (optional)
+- `authenticate` `{ "userId": "customer-1", "userType": "customer" }`
+- `joinTrip` `{ "tripId": "trip-1" }`
+- `leaveTrip` `{ "tripId": "trip-1" }`
+- `updateLocation` `{ "latitude": 10.1, "longitude": 106.1, "tripId": "trip-1" }`
 
-Điều kiện:
-- ADMIN_MONITOR=true
-- token hợp lệ role=admin
+Server -> client:
 
-Client -> Server:
-- admin:joinTrip (tripId)
-- admin:emitTest ({ room, event, data })
-- admin:getDrivers ()
-- admin:setFilter (filter)
+- `authenticated` `{ success, userId, userType, rooms }`
+- `joinedTrip`, `leftTrip`, `locationUpdate`, `error`.
 
-Server -> Client:
-- admin:log
-- admin:drivers
+Chua thay verify token trong legacy `authenticate` payload.
 
-Ghi chú trạng thái runtime module hóa:
-- Runtime production `server.js` đã có đầy đủ admin flow.
-- Runtime module hóa đã có admin middleware và handlers cơ bản; vẫn cần hoàn thiện checklist hardening/monitoring trước cutover.
+### Namespace `/admin`
+
+Dieu kien: `ADMIN_MONITOR=true`.
+
+Handshake token:
+
+- `socket.handshake.auth.token`, hoac
+- header `authorization`/`Authorization`.
+
+Auth rule: `authService.verifyAdminToken()` can JWT HS256 hop le va `payload.role === "admin"`.
+
+Client -> server:
+
+- `admin:joinTrip` `(tripId)`
+- `admin:emitTest` `({ room, event, data })`
+- `admin:getDrivers` `()`
+- `admin:setFilter` `(filter)`
+
+Server -> client:
+
+- `admin:log`
+- `admin:drivers`
 
 ## Redis Pub/Sub contract
 
-Channel:
-- bechill:events
+Runtime channel hien hard-code trong config: `bechill:events`.
 
-Khuôn mẫu message:
+Dan chung: `src/config/env.js:readEnv()`, `subscribeBackendEvents()`.
+
+Generic message:
 
 ```json
 {
-  "type": "user | trip | broadcast",
-  "target": "...",
-  "eventName": "...",
+  "type": "user",
+  "target": "customer-1",
+  "eventName": "eventName",
   "payload": {
-    "userType": "driver | customer",
+    "userType": "customer",
     "data": {}
   }
 }
 ```
 
-Booking trip event naming conventions được xử lý đặc biệt:
-- bookingTrip:Request
-- bookingTrip:Canceled
-- bookingTrip:AcceptedTrip
-- bookingTrip:ToPickUp
-- bookingTrip:DriverCanceled
-- bookingTrip:Started
-- bookingTrip:Completed
-- bookingTrip:CompletedWithProblem
+Supported generic `type` in source:
 
-## Redis keys và TTL
+- `user`
+- `trip`
+- `broadcast`
 
-- socket:uid:{userType}:{userId} -> set socketIds, TTL 30 ngày
-- socket:info:{socketId} -> hash metadata, TTL 30 ngày
-- socket:room:{roomName} -> set socketIds, TTL 30 ngày
-- location:{userId} -> hash location, TTL 300 giây
+Special booking prefix:
 
-## Lưu ý compatibility
+- `bookingTrip:Request`
+- `bookingTrip:Canceled`
+- `bookingTrip:AcceptedTrip`
+- `bookingTrip:ToPickUp`
+- `bookingTrip:DriverCanceled`
+- `bookingTrip:Started`
+- `bookingTrip:Completed`
+- `bookingTrip:CompletedWithProblem`
 
-- Namespace / là legacy support, không nên xóa nếu chưa migrate hết client.
-- Event payload giữa các namespace có thể khác nhau theo luồng backend.
-- Nên giữ tên event bookingTrip:* ổn định để tránh vỡ contract với mobile apps.
+## Chua tim thay trong source
+
+- Khong thay OpenAPI/Swagger file.
+- Khong thay request schema validator nhu Joi/Zod/AJV.
+- Khong thay auth cho `/health`, `/metrics`, `/dashboard`, `/connections`.
+- Khong thay `requireBackendSecret` tren `/driver/event` va `/customer/event`.
+- Khong thay payload schema bat buoc cho Redis messages ngoai JSON parse va field access truc tiep.
+- Khong thay versioning cho socket event contract.

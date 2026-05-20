@@ -1,12 +1,16 @@
 const express = require("express");
 const { createServer } = require("http");
+const path = require("path");
 const { Server } = require("socket.io");
 
-const { readEnv } = require("../config/env");
+const { readEnv, resolveRedisTtlPolicy } = require("../config/env");
 const { createLoggerPort } = require("../infrastructure/logging/loggerPort");
 const {
   createRedisClients,
 } = require("../infrastructure/redis/createRedisClients");
+const {
+  createSqlDatabase,
+} = require("../infrastructure/sql/createSqlDatabase");
 const { createSafeRedisOps } = require("../infrastructure/redis/safeRedisOps");
 const {
   createConnectionRegistry,
@@ -39,6 +43,20 @@ const {
 async function createRuntime() {
   const env = readEnv();
   const loggerPort = createLoggerPort();
+  const sqlDatabase = await createSqlDatabase({
+    config: env.sql,
+    loggerPort,
+  });
+  const redisConfig = resolveRedisTtlPolicy(env.redis, sqlDatabase.available);
+
+  if (!sqlDatabase.available) {
+    loggerPort.warn("SQL", "Using Redis fallback TTL policy", {
+      reason: sqlDatabase.reason,
+      socketTtlSeconds: redisConfig.socketTtlSeconds,
+      locationTtlSeconds: redisConfig.locationTtlSeconds,
+      maxFallbackTtlSeconds: redisConfig.maxFallbackTtlSeconds,
+    });
+  }
 
   if (
     env.environment === "staging" &&
@@ -52,6 +70,7 @@ async function createRuntime() {
 
   const app = express();
   app.use(express.json());
+  app.use("/demo", express.static(path.resolve(__dirname, "../../public")));
 
   const httpServer = createServer(app);
   const io = new Server(httpServer, {
@@ -63,7 +82,7 @@ async function createRuntime() {
     transports: ["websocket", "polling"],
   });
 
-  const { commandClient, subscribeClient } = createRedisClients(env.redis);
+  const { commandClient, subscribeClient } = createRedisClients(redisConfig);
   const safeRedisOps = createSafeRedisOps(commandClient, loggerPort);
   const runtimeMetrics = createRuntimeMetrics();
 
@@ -74,11 +93,11 @@ async function createRuntime() {
   });
   const tripRoomService = createTripRoomService({
     safeRedisOps,
-    socketTtlSeconds: env.redis.socketTtlSeconds,
+    socketTtlSeconds: redisConfig.socketTtlSeconds,
   });
   const locationService = createLocationService({
     safeRedisOps,
-    locationTtlSeconds: env.redis.locationTtlSeconds,
+    locationTtlSeconds: redisConfig.locationTtlSeconds,
   });
 
   const namespaces = registerNamespaces(io, env);
@@ -103,6 +122,7 @@ async function createRuntime() {
     loggerPort,
     runtimeMetrics,
     authService,
+    sqlStatus: sqlDatabase,
   });
   registerSocketFlows({
     io,
@@ -111,14 +131,14 @@ async function createRuntime() {
     safeRedisOps,
     authService,
     loggerPort,
-    socketTtlSeconds: env.redis.socketTtlSeconds,
+    socketTtlSeconds: redisConfig.socketTtlSeconds,
     tripRoomService,
     locationService,
     runtimeMetrics,
   });
   subscribeBackendEvents({
     subscribeClient,
-    channel: env.redis.pubSubChannel,
+    channel: redisConfig.pubSubChannel,
     loggerPort,
     relayService,
     runtimeMetrics,
@@ -147,6 +167,7 @@ async function createRuntime() {
     await Promise.allSettled([
       commandClient.quit(),
       subscribeClient.quit(),
+      sqlDatabase.close(),
       new Promise((resolve) => io.close(resolve)),
       new Promise((resolve) => httpServer.close(resolve)),
     ]);

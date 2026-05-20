@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BeChill Socket Demo</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --panel-2: #eef3f8;
+      --text: #172033;
+      --muted: #65738a;
+      --line: #d8e0ea;
+      --primary: #176f7a;
+      --primary-dark: #0f5962;
+      --danger: #b42318;
+      --ok: #087443;
+      --warn: #a15c07;
+      --code: #111827;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      padding: 16px 22px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 15px;
+      letter-spacing: 0;
+    }
+
+    main {
+      width: min(1440px, 96vw);
+      margin: 18px auto 28px;
+      display: grid;
+      grid-template-columns: minmax(310px, 390px) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+    }
+
+    .stack { display: grid; gap: 12px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 9px;
+      color: var(--text);
+      background: #fff;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 78px;
+      resize: vertical;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+    }
+
+    button {
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: #fff;
+      background: var(--primary);
+      cursor: pointer;
+      font-weight: 700;
+      min-height: 36px;
+    }
+
+    button:hover { background: var(--primary-dark); }
+
+    button.secondary {
+      color: var(--text);
+      background: var(--panel-2);
+      border-color: var(--line);
+    }
+
+    button.secondary:hover { background: #e4ebf3; }
+
+    button.danger { background: var(--danger); }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .row > button { flex: 1 1 130px; }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .status {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+      min-height: 72px;
+    }
+
+    .status strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .status span {
+      display: block;
+      color: var(--danger);
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .status.connected span { color: var(--ok); }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .tabs button {
+      flex: 0 0 auto;
+      color: var(--text);
+      background: var(--panel-2);
+      border-color: var(--line);
+    }
+
+    .tabs button.active {
+      color: #fff;
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: grid; gap: 12px; }
+
+    .log {
+      height: 410px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--code);
+      color: #d8dee9;
+      padding: 10px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .warn {
+      border-left: 4px solid var(--warn);
+      background: #fff8ec;
+      padding: 9px 10px;
+      border-radius: 6px;
+      color: #523200;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 8px;
+      color: var(--muted);
+      background: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    @media (max-width: 980px) {
+      main { grid-template-columns: 1fr; }
+      .status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>BeChill Socket Demo</h1>
+      <p class="hint">Test connect, trip room, location, chat-style events, notification events, broadcast and admin emit.</p>
+    </div>
+    <span class="pill" id="clock">--:--:--</span>
+  </header>
+
+  <main>
+    <div class="stack">
+      <section>
+        <h2>Connection Settings</h2>
+        <div class="grid">
+          <label>Service URL
+            <input id="serviceUrl" value="http://localhost:8605">
+          </label>
+          <label>Backend API key / JWT secret
+            <input id="apiKey" value="testsecret">
+          </label>
+          <label>Driver ID
+            <input id="driverId" value="driver-001">
+          </label>
+          <label>Customer ID
+            <input id="customerId" value="customer-001">
+          </label>
+          <label>Driver token
+            <input id="driverToken" value="test-driver-token">
+          </label>
+          <label>Customer token
+            <input id="customerToken" value="test-customer-token">
+          </label>
+          <label>Admin token
+            <input id="adminToken" placeholder="admin JWT token">
+          </label>
+          <label>Trip ID
+            <input id="tripId" value="trip-001">
+          </label>
+        </div>
+        <p class="warn">Open this page from <code>/demo/socket-demo.html</code> on the socket service origin for HTTP emit buttons. Driver/customer namespaces use <code>handshake.auth</code>.</p>
+      </section>
+
+      <section>
+        <h2>Socket Connections</h2>
+        <div class="row">
+          <button id="connectAll">Connect all</button>
+          <button class="secondary" id="disconnectAll">Disconnect all</button>
+          <button class="secondary" id="healthCheck">Health</button>
+        </div>
+        <div class="status-grid" style="margin-top: 12px;">
+          <div class="status" id="status-legacy"><strong>Legacy /</strong><span>offline</span></div>
+          <div class="status" id="status-drivers"><strong>/drivers</strong><span>offline</span></div>
+          <div class="status" id="status-customers"><strong>/customers</strong><span>offline</span></div>
+          <div class="status" id="status-admin"><strong>/admin</strong><span>offline</span></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Room And Client Emits</h2>
+        <div class="row">
+          <button id="joinTrip">Join trip</button>
+          <button class="secondary" id="leaveTrip">Leave trip</button>
+          <button class="secondary" id="updateLocation">Update location</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="stack">
+      <section>
+        <div class="tabs">
+          <button class="active" data-tab="trip">Trip</button>
+          <button data-tab="chat">Chat</button>
+          <button data-tab="notification">Notification</button>
+          <button data-tab="broadcast">Broadcast</button>
+          <button data-tab="admin">Admin</button>
+          <button data-tab="custom">Custom</button>
+        </div>
+
+        <div class="tab-panel active" id="tab-trip">
+          <h2>Trip Emits</h2>
+          <div class="row">
+            <button data-trip-event="bookingTrip:Request">Request to driver</button>
+            <button data-trip-event="bookingTrip:AcceptedTrip">Accepted</button>
+            <button data-trip-event="bookingTrip:ToPickUp">To pickup</button>
+            <button data-trip-event="bookingTrip:Started">Started</button>
+            <button data-trip-event="bookingTrip:Completed">Completed</button>
+            <button class="danger" data-trip-event="bookingTrip:Canceled">Canceled</button>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-chat">
+          <h2>Chat Demo Emits</h2>
+          <div class="grid">
+            <label>Message
+              <input id="chatMessage" value="Driver is arriving in 3 minutes">
+            </label>
+            <label>Sender
+              <select id="chatSender">
+                <option value="driver">driver</option>
+                <option value="customer">customer</option>
+              </select>
+            </label>
+          </div>
+          <div class="row">
+            <button id="sendChatToTrip">Emit chat:message to trip</button>
+            <button class="secondary" id="sendTypingToTrip">Emit chat:typing to trip</button>
+            <button class="secondary" id="sendReadToUser">Emit chat:read to customer</button>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-notification">
+          <h2>Notification Emits</h2>
+          <div class="grid">
+            <label>Title
+              <input id="notiTitle" value="Trip update">
+            </label>
+            <label>Body
+              <input id="notiBody" value="Your trip status has changed">
+            </label>
+            <label>Target user type
+              <select id="notiUserType">
+                <option value="customer">customer</option>
+                <option value="driver">driver</option>
+              </select>
+            </label>
+            <label>Category
+              <input id="notiCategory" value="booking">
+            </label>
+          </div>
+          <div class="row">
+            <button id="sendNotificationUser">Emit notification:new to user</button>
+            <button class="secondary" id="sendNotificationTrip">Emit notification:new to trip</button>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-broadcast">
+          <h2>Broadcast Emits</h2>
+          <div class="grid">
+            <label>Broadcast user type
+              <select id="broadcastUserType">
+                <option value="all">all</option>
+                <option value="driver">driver</option>
+                <option value="customer">customer</option>
+                <option value="admin">admin</option>
+              </select>
+            </label>
+            <label>Target room
+              <input id="broadcastRoom" placeholder="optional, e.g. trip_trip-001">
+            </label>
+          </div>
+          <div class="row">
+            <button id="sendBroadcast">Emit system:notice</button>
+            <button class="secondary" id="sendRoomBroadcast">Emit to trip room</button>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-admin">
+          <h2>Admin Namespace Emits</h2>
+          <div class="row">
+            <button id="adminJoinTrip">admin:joinTrip</button>
+            <button class="secondary" id="adminGetDrivers">admin:getDrivers</button>
+            <button class="secondary" id="adminEmitTest">admin:emitTest root room</button>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-custom">
+          <h2>Custom HTTP Emit</h2>
+          <div class="grid">
+            <label>Endpoint
+              <select id="customEndpoint">
+                <option value="/emit/trip">/emit/trip</option>
+                <option value="/emit/user">/emit/user</option>
+                <option value="/emit/broadcast">/emit/broadcast</option>
+              </select>
+            </label>
+            <label>Event name
+              <input id="customEventName" value="demo:event">
+            </label>
+          </div>
+          <label>JSON body override
+            <textarea id="customBody">{
+  "tripId": "trip-001",
+  "eventName": "demo:event",
+  "payload": {
+    "source": "socket-demo"
+  }
+}</textarea>
+          </label>
+          <div class="row">
+            <button id="sendCustom">Send custom emit</button>
+            <button class="secondary" id="fillCustomTrip">Fill trip body</button>
+            <button class="secondary" id="fillCustomUser">Fill user body</button>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="row" style="justify-content: space-between;">
+          <h2 style="margin: 0;">Event Log</h2>
+          <button class="secondary" id="clearLog" style="flex: 0 0 auto;">Clear</button>
+        </div>
+        <div class="log" id="log"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    if (!window.io) {
+      document.write('<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"><\/script>');
+    }
+  </script>
+  <script>
+    const sockets = {};
+    const $ = (id) => document.getElementById(id);
+    const value = (id) => $(id).value.trim();
+
+    function now() {
+      return new Date().toLocaleTimeString("vi-VN", { hour12: false });
+    }
+
+    function log(scope, eventName, payload) {
+      const line = `[${now()}] ${scope} ${eventName}\n${JSON.stringify(payload, null, 2)}\n\n`;
+      const el = $("log");
+      el.textContent = line + el.textContent;
+    }
+
+    function setStatus(key, connected, text) {
+      const el = $(`status-${key}`);
+      if (!el) return;
+      el.classList.toggle("connected", connected);
+      el.querySelector("span").textContent = text || (connected ? "connected" : "offline");
+    }
+
+    function baseUrl() {
+      return value("serviceUrl").replace(/\/+$/, "");
+    }
+
+    function tripId() {
+      return value("tripId");
+    }
+
+    function attachSocket(name, socket) {
+      socket.on("connect", () => {
+        setStatus(name, true, socket.id);
+        log(name, "connect", { id: socket.id, namespace: socket.nsp });
+      });
+      socket.on("disconnect", (reason) => {
+        setStatus(name, false, reason);
+        log(name, "disconnect", { reason });
+      });
+      socket.on("connect_error", (error) => {
+        setStatus(name, false, error.message);
+        log(name, "connect_error", { message: error.message });
+      });
+      socket.on("error", (payload) => log(name, "error", payload));
+      socket.onAny((eventName, payload) => log(name, eventName, payload));
+    }
+
+    function connectLegacy() {
+      if (sockets.legacy?.connected) return;
+      const socket = io(baseUrl(), { transports: ["websocket", "polling"] });
+      sockets.legacy = socket;
+      attachSocket("legacy", socket);
+      socket.on("connect", () => {
+        socket.emit("authenticate", {
+          userId: value("customerId"),
+          userType: "customer"
+        });
+      });
+    }
+
+    function connectDriver() {
+      if (sockets.drivers?.connected) return;
+      const socket = io(`${baseUrl()}/drivers`, {
+        transports: ["websocket", "polling"],
+        auth: {
+          token: value("driverToken"),
+          userId: value("driverId")
+        }
+      });
+      sockets.drivers = socket;
+      attachSocket("drivers", socket);
+    }
+
+    function connectCustomer() {
+      if (sockets.customers?.connected) return;
+      const socket = io(`${baseUrl()}/customers`, {
+        transports: ["websocket", "polling"],
+        auth: {
+          token: value("customerToken"),
+          userId: value("customerId")
+        }
+      });
+      sockets.customers = socket;
+      attachSocket("customers", socket);
+    }
+
+    function connectAdmin() {
+      if (!value("adminToken")) {
+        log("admin", "skip", { message: "Admin token is empty" });
+        return;
+      }
+      if (sockets.admin?.connected) return;
+      const socket = io(`${baseUrl()}/admin`, {
+        transports: ["websocket", "polling"],
+        auth: { token: value("adminToken") }
+      });
+      sockets.admin = socket;
+      attachSocket("admin", socket);
+    }
+
+    function connectAll() {
+      connectLegacy();
+      connectDriver();
+      connectCustomer();
+      connectAdmin();
+    }
+
+    function disconnectAll() {
+      Object.values(sockets).forEach((socket) => socket.disconnect());
+    }
+
+    function emitToConnected(eventName, payload) {
+      ["legacy", "drivers", "customers"].forEach((name) => {
+        const socket = sockets[name];
+        if (socket?.connected) {
+          socket.emit(eventName, payload);
+          log(name, `client:${eventName}`, payload);
+        }
+      });
+    }
+
+    async function postJson(path, body) {
+      const response = await fetch(`${baseUrl()}${path}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": value("apiKey")
+        },
+        body: JSON.stringify(body)
+      });
+      const text = await response.text();
+      let payload;
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = text;
+      }
+      log("http", `${response.status} ${path}`, payload);
+      if (!response.ok) {
+        throw new Error(`${path} ${response.status}`);
+      }
+      return payload;
+    }
+
+    function tripPayload(eventName) {
+      return {
+        tripId: tripId(),
+        eventName,
+        payload: {
+          tripId: tripId(),
+          status: eventName.split(":").pop(),
+          source: "socket-demo",
+          at: new Date().toISOString()
+        }
+      };
+    }
+
+    function chatPayload(eventName) {
+      const senderType = value("chatSender");
+      return {
+        id: `msg-${Date.now()}`,
+        tripId: tripId(),
+        senderType,
+        senderId: senderType === "driver" ? value("driverId") : value("customerId"),
+        message: value("chatMessage"),
+        at: new Date().toISOString(),
+        source: "socket-demo",
+        eventName
+      };
+    }
+
+    function notificationPayload() {
+      return {
+        id: `noti-${Date.now()}`,
+        category: value("notiCategory"),
+        title: value("notiTitle"),
+        body: value("notiBody"),
+        tripId: tripId(),
+        at: new Date().toISOString(),
+        source: "socket-demo"
+      };
+    }
+
+    async function healthCheck() {
+      const response = await fetch(`${baseUrl()}/health`, { cache: "no-store" });
+      const payload = await response.json();
+      log("http", `GET /health ${response.status}`, payload);
+    }
+
+    $("connectAll").addEventListener("click", connectAll);
+    $("disconnectAll").addEventListener("click", disconnectAll);
+    $("healthCheck").addEventListener("click", () => healthCheck().catch((error) => log("http", "health:error", { message: error.message })));
+    $("clearLog").addEventListener("click", () => { $("log").textContent = ""; });
+
+    $("joinTrip").addEventListener("click", () => emitToConnected("joinTrip", { tripId: tripId() }));
+    $("leaveTrip").addEventListener("click", () => emitToConnected("leaveTrip", { tripId: tripId() }));
+    $("updateLocation").addEventListener("click", () => emitToConnected("updateLocation", {
+      latitude: 10.7769 + Math.random() / 1000,
+      longitude: 106.7009 + Math.random() / 1000,
+      tripId: tripId()
+    }));
+
+    document.querySelectorAll("[data-trip-event]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const eventName = button.getAttribute("data-trip-event");
+        const body = eventName === "bookingTrip:Request"
+          ? {
+              userType: "driver",
+              userId: value("driverId"),
+              eventName,
+              payload: tripId()
+            }
+          : tripPayload(`${eventName}:${tripId()}`);
+        const path = eventName === "bookingTrip:Request" ? "/emit/user" : "/emit/trip";
+        postJson(path, body).catch((error) => log("http", "emit:error", { message: error.message }));
+      });
+    });
+
+    $("sendChatToTrip").addEventListener("click", () => {
+      postJson("/emit/trip", {
+        tripId: tripId(),
+        eventName: "chat:message",
+        payload: chatPayload("chat:message")
+      }).catch((error) => log("http", "chat:error", { message: error.message }));
+    });
+
+    $("sendTypingToTrip").addEventListener("click", () => {
+      postJson("/emit/trip", {
+        tripId: tripId(),
+        eventName: "chat:typing",
+        payload: chatPayload("chat:typing")
+      }).catch((error) => log("http", "typing:error", { message: error.message }));
+    });
+
+    $("sendReadToUser").addEventListener("click", () => {
+      postJson("/emit/user", {
+        userType: "customer",
+        userId: value("customerId"),
+        eventName: "chat:read",
+        payload: chatPayload("chat:read")
+      }).catch((error) => log("http", "read:error", { message: error.message }));
+    });
+
+    $("sendNotificationUser").addEventListener("click", () => {
+      const userType = value("notiUserType");
+      postJson("/emit/user", {
+        userType,
+        userId: userType === "driver" ? value("driverId") : value("customerId"),
+        eventName: "notification:new",
+        payload: notificationPayload()
+      }).catch((error) => log("http", "notification:error", { message: error.message }));
+    });
+
+    $("sendNotificationTrip").addEventListener("click", () => {
+      postJson("/emit/trip", {
+        tripId: tripId(),
+        eventName: "notification:new",
+        payload: notificationPayload()
+      }).catch((error) => log("http", "notification:error", { message: error.message }));
+    });
+
+    $("sendBroadcast").addEventListener("click", () => {
+      postJson("/emit/broadcast", {
+        eventName: "system:notice",
+        payload: {
+          message: "Maintenance notice from socket demo",
+          at: new Date().toISOString()
+        },
+        userType: value("broadcastUserType"),
+        targetRoom: value("broadcastRoom") || null
+      }).catch((error) => log("http", "broadcast:error", { message: error.message }));
+    });
+
+    $("sendRoomBroadcast").addEventListener("click", () => {
+      $("broadcastRoom").value = `trip_${tripId()}`;
+      $("sendBroadcast").click();
+    });
+
+    $("adminJoinTrip").addEventListener("click", () => {
+      if (!sockets.admin?.connected) return log("admin", "admin:joinTrip:error", { message: "admin socket is not connected" });
+      sockets.admin.emit("admin:joinTrip", tripId());
+      log("admin", "client:admin:joinTrip", { tripId: tripId() });
+    });
+
+    $("adminGetDrivers").addEventListener("click", () => {
+      if (!sockets.admin?.connected) return log("admin", "admin:getDrivers:error", { message: "admin socket is not connected" });
+      sockets.admin.emit("admin:getDrivers");
+      log("admin", "client:admin:getDrivers", {});
+    });
+
+    $("adminEmitTest").addEventListener("click", () => {
+      if (!sockets.admin?.connected) return log("admin", "admin:emitTest:error", { message: "admin socket is not connected" });
+      const payload = {
+        room: `trip_${tripId()}`,
+        event: "demo:admin",
+        data: { source: "admin:emitTest", tripId: tripId(), at: new Date().toISOString() }
+      };
+      sockets.admin.emit("admin:emitTest", payload);
+      log("admin", "client:admin:emitTest", payload);
+    });
+
+    $("fillCustomTrip").addEventListener("click", () => {
+      $("customEndpoint").value = "/emit/trip";
+      $("customBody").value = JSON.stringify({
+        tripId: tripId(),
+        eventName: value("customEventName") || "demo:event",
+        payload: { source: "socket-demo", tripId: tripId() }
+      }, null, 2);
+    });
+
+    $("fillCustomUser").addEventListener("click", () => {
+      $("customEndpoint").value = "/emit/user";
+      $("customBody").value = JSON.stringify({
+        userType: "customer",
+        userId: value("customerId"),
+        eventName: value("customEventName") || "demo:event",
+        payload: { source: "socket-demo", tripId: tripId() }
+      }, null, 2);
+    });
+
+    $("sendCustom").addEventListener("click", () => {
+      let body;
+      try {
+        body = JSON.parse($("customBody").value);
+      } catch (error) {
+        log("custom", "json:error", { message: error.message });
+        return;
+      }
+      postJson(value("customEndpoint"), body).catch((error) => log("custom", "emit:error", { message: error.message }));
+    });
+
+    document.querySelectorAll(".tabs button").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".tabs button").forEach((item) => item.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        $(`tab-${button.dataset.tab}`).classList.add("active");
+      });
+    });
+
+    setInterval(() => {
+      $("clock").textContent = new Date().toLocaleString("vi-VN", { hour12: false });
+    }, 1000);
+
+    $("clock").textContent = new Date().toLocaleString("vi-VN", { hour12: false });
+    $("fillCustomTrip").click();
+  </script>
+</body>
+</html>

@@ -1,177 +1,115 @@
-# 03 - Logic nghiệp vụ realtime
+# 03 - Business Domain Realtime
 
-## Mục tiêu nghiệp vụ
+Cap nhat: 2026-05-20. Tai lieu nay tom tat nghiep vu suy ra tu source, kem dan chung file/function.
 
-Đồng bộ trạng thái chuyến đi và vị trí theo thời gian thực giữa:
+## Dan chung source chinh
 
-- Tài xế
-- Khách hàng
-- Dịch vụ backend
+| Nghiep vu | File/function cu the |
+| --- | --- |
+| Socket user lifecycle | `src/transports/socket/registerSocketFlows.js:registerSocketFlows()` |
+| Driver/customer connection policy | `registerSocketFlows()` connection handlers cho `/drivers` va `/customers` |
+| Trip room membership | `src/modules/trip/tripRoomService.js:createTripRoomService()`, `joinTrip()`, `leaveTrip()` |
+| Location normalization/cache | `src/modules/location/locationService.js:createLocationService()`, `src/shared/utils/validateLocation.js:validateLocation()` |
+| Booking event relay | `src/modules/relay/redisRelayService.js:relayBookingEvent()` |
+| Generic backend relay | `src/modules/relay/redisRelayService.js:relayGenericEvent()` |
+| Backend HTTP emit | `src/modules/connection/socketEmitterService.js:emitToDriver()`, `emitToCustomer()`, `emitToTrip()`, `emitBroadcast()` |
 
-## Luồng kết nối và xác thực
+## Domain actors
 
-1. Driver/Customer kết nối đến namespace tương ứng.
-2. Middleware đọc Authorization header và user_id.
-3. Nếu hợp lệ, gán user info vào socket.
-4. Server đăng ký socket vào map in-memory + Redis mapping.
+- Driver: nhan booking request, join/leave trip, update location.
+- Customer: theo doi trip, co the nhan nhieu event qua nhieu thiet bi.
+- Admin: monitor/control namespace neu bat `ADMIN_MONITOR=true`.
+- Backend: nguon phat sinh booking/trip/system event qua HTTP route hoac Redis Pub/Sub.
+- Socket service: realtime delivery layer, khong so huu database booking/trip.
 
-## Quản lý room
+## Domain terms trong source
 
-- Room theo user:
-  - driver_{userId}
-  - customer_{userId}
-- Room theo trip:
-  - trip_{tripId}
+- `userType`: `driver` hoac `customer` trong route `/emit/user` va socket registration.
+- `userId`: lay tu header `user_id`/`userId` trong namespace role, hoac tu payload `authenticate` trong legacy namespace.
+- `tripId`: identifier duoc bien thanh room `trip_{tripId}`.
+- User room: `driver_{userId}` hoac `customer_{userId}`.
+- Trip room: `trip_{tripId}`.
+- Booking event: cac event prefix `bookingTrip:*`.
 
-Hành vi:
+## Business rules da tim thay
 
-- joinTrip: socket join trip_{tripId}
-- leaveTrip: socket rời trip_{tripId}
+### Driver single-active socket
 
-## Vị trí realtime
+Trong `/drivers`, khi driver moi ket noi, source kiem tra `registry.drivers.get(userId)`. Neu co socket cu khac id thi disconnect socket cu, sau do set socket moi.
 
-Event updateLocation được xử lý theo các bước:
+Dan chung: `src/transports/socket/registerSocketFlows.js`, connection handler `namespaces.drivers.on("connection")`.
 
-1. Throttle 1 giây/socket
-2. Validate latitude/longitude
-3. Lưu location vào Redis với TTL 5 phút
-4. Nếu có tripId, broadcast locationUpdate tới:
-  - default namespace room trip_{tripId}
-  - /drivers room trip_{tripId}
-  - /customers room trip_{tripId}
-5. Gửi log monitor tới admin namespace
+### Customer multi-device socket
 
-## Luồng sự kiện nghiệp vụ từ backend (.NET -> Redis -> Socket)
+Trong `/customers`, source lay danh sach socket hien tai cua customer, push socket moi va luu lai map. Disconnect chi xoa socket bi disconnect; neu con socket khac thi van giu customer trong registry.
 
-Backend publish vào channel bechill:events. Server map sự kiện bookingTrip theo rules:
+Dan chung: `registerSocketFlows()`, connection handler `namespaces.customers.on("connection")`.
 
-1. bookingTrip:Request
-- Ưu tiên emit đến tài xế được chỉ định (driverId).
-- Không broadcast đại trà khi không tìm thấy driver socket.
+### Legacy compatibility
 
-2. bookingTrip:Canceled
-- Emit bookingTrip:Canceled:{tripId} đến trip room.
-- Có thể emit trực tiếp thêm đến driver nếu có driverId.
+Namespace `/` cho client cu, khong dung middleware Bearer. Client phai emit `authenticate` voi `{ userId, userType }` truoc khi `updateLocation`; neu chua authenticated thi server emit `error { message: "Not authenticated" }`.
 
-3. bookingTrip:AcceptedTrip
-- Emit bookingTrip:AcceptedTrip:{tripId} đến trip room + customers.
-- Nếu có target customerId, emit trực tiếp đến customer sockets.
+Dan chung: `registerSocketFlows()`, handler `namespaces.legacy.on("connection")`, event `authenticate`, `updateLocation`.
 
-4. bookingTrip:ToPickUp
-- Emit bookingTrip:ToPickUp:{tripId} đến trip room, drivers, customers.
+### Join/leave trip room
 
-5. bookingTrip:Started
-- Emit bookingTrip:Started:{tripId} kèm payload phù hợp.
+`joinTrip` yeu cau `tripId`, join room `trip_{tripId}`, add socket id vao Redis set `socket:room:{roomName}`, set TTL. `leaveTrip` leave room va remove socket id khoi Redis set.
 
-6. bookingTrip:Completed
-- Emit bookingTrip:Completed:{tripId} kèm completed payload.
+Dan chung: `tripRoomService.joinTrip()`, `tripRoomService.leaveTrip()`.
 
-7. bookingTrip:CompletedWithProblem
-- Emit bookingTrip:CompletedWithProblem:{tripId} kèm problemDescription nếu có.
+### Location update
 
-8. bookingTrip:DriverCanceled
-- Được map thành bookingTrip:Canceled:{tripId} cho client.
+`updateLocation` co luong:
 
-## Generic event routing (ngoài bookingTrip)
+1. Throttle theo socket 1 lan/giay.
+2. Validate latitude/longitude la number va nam trong range.
+3. Luu `location:{userId}` vao Redis voi TTL 300 giay.
+4. Neu co `tripId`, emit `locationUpdate` den room `trip_{tripId}` tren legacy root, `/drivers`, `/customers`.
 
-Server hỗ trợ event theo type:
+Dan chung: `registerSocketFlows.js:onUpdateLocation()`, `locationService.isThrottled()`, `locationService.persistLocation()`, `validateLocation()`.
 
-- type=user:
-  - target=drivers/customers -> namespace broadcast
-  - target=userId -> emit đến user room và socketIds từ Redis
-- type=trip:
-  - emit đến trip_{target}
-- type=broadcast:
-  - target có giá trị -> broadcast theo room/target
-  - target null -> broadcast toàn bộ
+### Backend booking event relay
 
-## Sequence chính
+Booking event duoc parse boi `parseBookingEvent()` va xu ly boi `relayBookingEvent()`.
 
-### 1) Booking request
+| Event base | Hanh vi source |
+| --- | --- |
+| `bookingTrip:Request` | Xac dinh `driverId` tu `payload.driverId`, `target` hoac `payload.target`; emit truc tiep `bookingTrip:Request` den driver voi payload `tripId`. |
+| `bookingTrip:Canceled` | Emit `bookingTrip:Canceled:{tripId}` den trip room tren legacy, drivers, customers; neu co `payload.driverId` thi emit them den driver. |
+| `bookingTrip:AcceptedTrip` | Emit `bookingTrip:AcceptedTrip:{tripId}` den legacy room va customers room; neu co `target` thi emit den customer. |
+| `bookingTrip:ToPickUp` | Emit `bookingTrip:ToPickUp:{tripId}` den trip room tren tat ca namespaces; neu co `target` thi emit den customer. |
+| `bookingTrip:DriverCanceled` | Map thanh event client `bookingTrip:Canceled:{tripId}` cho legacy room va customers room; neu co `target` thi emit den customer. |
+| `bookingTrip:Started` | Emit `bookingTrip:Started:{tripId}` den tat ca trip room, payload la `tripId`; neu co `target` thi emit den customer. |
+| `bookingTrip:Completed` | Emit `bookingTrip:Completed:{tripId}` den tat ca trip room, payload la `payload.data` neu co, fallback `tripId`; neu co `target` thi emit den customer. |
+| `bookingTrip:CompletedWithProblem` | Emit `bookingTrip:CompletedWithProblem:{tripId}`; payload gom `{ tripId, problemDescription }` neu co mo ta, fallback `tripId`; neu co `target` thi emit den customer voi payload `tripId`. |
 
-```mermaid
-sequenceDiagram
-    participant API as .NET Backend API
-    participant R as Redis Pub/Sub
-    participant S as SocketServer
-    participant D as Driver App
-    participant C as Customer App
+Dan chung: `src/modules/relay/redisRelayService.js:parseBookingEvent()`, `relayBookingEvent()`.
 
-    API->>R: PUBLISH bechill:events (bookingTrip:Request)
-    R-->>S: message eventName=bookingTrip:Request
-    S->>S: Parse + xác định driverId/tripId
-    alt Có driverId và driver đang online
-        S-->>D: emit bookingTrip:Request (tripId)
-    else Không có socket phù hợp
-        S->>S: Ghi log, không broadcast đại trà
-    end
-    S-->>S: emitAdminLog + Telegram trace
-```
+## Generic backend event routing
 
-### 2) Location update
+Khi Redis message khong bat dau bang `bookingTrip:`, source route theo `type`:
 
-```mermaid
-sequenceDiagram
-    participant U as Driver/Customer App
-    participant S as SocketServer
-    participant R as Redis
-    participant T as Trip Room Clients
-    participant A as Admin Monitor
+- `type=user`: neu `target=admins/admin` emit admin namespace; neu `target=drivers/customers` broadcast namespace; neu target la user id thi tao user room `${userType}_${target}` va emit den driver/customer namespace tuong ung, kem fallback `socketEmitter.emitToDriver()` hoac `emitToCustomer()`.
+- `type=trip`: emit den room `trip_{target}` tren legacy, drivers, customers.
+- `type=broadcast`: neu co target thi emit den room target; neu khong thi emit ca legacy, drivers, customers.
 
-    U->>S: updateLocation(lat,lng,tripId)
-    S->>S: Throttle 1s + validate tọa độ
-    alt Hợp lệ
-        S->>R: HSET location:{userId}
-        S->>R: EXPIRE 300s
-        S-->>T: locationUpdate đến trip_{tripId}
-        S-->>A: admin:log(type=location)
-    else Không hợp lệ hoặc bị throttle
-        S->>S: Bỏ qua event
-    end
-```
+Dan chung: `src/modules/relay/redisRelayService.js:relayGenericEvent()`.
 
-### 3) Redis event fanout
+## Business outcomes cua HTTP emit APIs
 
-```mermaid
-sequenceDiagram
-    participant API as .NET Backend
-    participant R as Redis Channel bechill:events
-    participant S as SocketServer
-    participant NSD as Namespace /drivers
-    participant NSC as Namespace /customers
-    participant NS0 as Namespace /
+- `/driver/event`: backend emit event den mot driver, payload la `trip_id`.
+- `/customer/event`: backend emit event den tat ca socket cua customer, payload la `trip_id`.
+- `/emit/user`: backend emit event tuy y den user driver/customer voi payload tuy y.
+- `/emit/trip`: backend emit event tuy y den room `trip_{tripId}`.
+- `/emit/broadcast`: backend broadcast theo `userType` va optional `targetRoom`.
 
-    API->>R: Publish {type,target,eventName,payload}
-    R-->>S: on(message)
-    S->>S: JSON.parse + normalize event
-    alt type=user
-        S-->>NSD: emit nếu target drivers/driver
-        S-->>NSC: emit nếu target customers/customer
-        S-->>NS0: emit tương thích legacy
-    else type=trip
-        S-->>NSD: to(trip_{target}).emit
-        S-->>NSC: to(trip_{target}).emit
-        S-->>NS0: to(trip_{target}).emit
-    else type=broadcast
-        S-->>NSD: emit toàn namespace hoặc room target
-        S-->>NSC: emit toàn namespace hoặc room target
-        S-->>NS0: emit toàn namespace hoặc room target
-    end
-```
+Dan chung: `src/transports/http/registerHttpRoutes.js` va `src/modules/connection/socketEmitterService.js`.
 
-## Disconnect cleanup
+## Chua tim thay trong source
 
-Khi socket disconnect:
-
-1. Xóa socket khỏi map in-memory
-2. Xóa mapping user-socket trong Redis
-3. Xóa socket khỏi room sets trong Redis
-4. Xóa throttle state của socket
-
-## Rule quan trọng cần giữ khi phát triển tiếp
-
-- Driver chỉ một socket active
-- Customer hỗ trợ đa thiết bị
-- Không để Redis outage làm crash process
-- Ưu tiên event đến đúng target, hạn chế broadcast thừa
-- Giữ backward compatibility cho namespace / (legacy)
+- Khong thay dinh nghia trang thai chuyen di day du nhu enum `Requested/Accepted/Started/Completed` ngoai ten event `bookingTrip:*`.
+- Khong thay business rule tinh gia, huy chuyen, phan tai xe, thanh toan, rating.
+- Khong thay source of truth cho trip/booking; Socket Service chi relay event.
+- Khong thay logic retry/deduplicate/idempotency cho backend events.
+- Khong thay schema chuan bat buoc cho payload Redis ngoai cac field duoc doc truc tiep trong `relayGenericEvent()`.
+- Khong thay validate `tripId` format, `userId` format hay `userType` trong legacy `authenticate` ngoai check truthy.

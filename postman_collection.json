@@ -1,0 +1,284 @@
+{
+  "info": {
+    "name": "BeChill Socket Service API",
+    "_postman_id": "e2f2b7cb-1b8d-4d21-9f55-2f1e7d1b6c7d",
+    "description": "Collection for BeChill realtime socket service HTTP APIs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Metrics",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/metrics",
+          "host": ["{{base_url}}"],
+          "path": ["metrics"]
+        }
+      }
+    },
+    {
+      "name": "Dashboard",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/dashboard",
+          "host": ["{{base_url}}"],
+          "path": ["dashboard"]
+        }
+      }
+    },
+    {
+      "name": "Connections",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/connections?type=driver",
+          "host": ["{{base_url}}"],
+          "path": ["connections"],
+          "query": [
+            {
+              "key": "type",
+              "value": "driver"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Driver Event",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "user_id",
+            "value": "driver-1",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"trip_id\": \"trip-1\",\n  \"socket_event\": \"bookingTrip:Started\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/driver/event",
+          "host": ["{{base_url}}"],
+          "path": ["driver", "event"]
+        }
+      }
+    },
+    {
+      "name": "Customer Event",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "user_id",
+            "value": "customer-1",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"trip_id\": \"trip-2\",\n  \"socket_event\": \"bookingTrip:AcceptedTrip\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/customer/event",
+          "host": ["{{base_url}}"],
+          "path": ["customer", "event"]
+        }
+      }
+    },
+    {
+      "name": "Emit User",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userType\": \"driver\",\n  \"userId\": \"driver-1\",\n  \"eventName\": \"bookingTrip:Started\",\n  \"payload\": {\n    \"tripId\": \"trip-1\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/emit/user",
+          "host": ["{{base_url}}"],
+          "path": ["emit", "user"]
+        }
+      }
+    },
+    {
+      "name": "Emit Trip",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tripId\": \"trip-2\",\n  \"eventName\": \"bookingTrip:ToPickUp\",\n  \"payload\": {\n    \"status\": \"to_pick_up\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/emit/trip",
+          "host": ["{{base_url}}"],
+          "path": ["emit", "trip"]
+        }
+      }
+    },
+    {
+      "name": "Chat to Trip",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-api-key", "value": "{{api_key}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tripId\": \"trip-001\",\n  \"eventName\": \"chat:message\",\n  \"payload\": {\n    \"id\": \"msg-12345\",\n    \"tripId\": \"trip-001\",\n    \"senderType\": \"driver\",\n    \"senderId\": \"driver-001\",\n    \"message\": \"Driver is arriving in 3 minutes\",\n    \"at\": \"2026-05-20T00:00:00.000Z\"\n  }\n}"
+        },
+        "url": { "raw": "{{base_url}}/emit/trip", "host": ["{{base_url}}"], "path": ["emit", "trip"] }
+      }
+    },
+    {
+      "name": "Chat typing to Trip",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-api-key", "value": "{{api_key}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tripId\": \"trip-001\",\n  \"eventName\": \"chat:typing\",\n  \"payload\": {\n    \"tripId\": \"trip-001\",\n    \"senderType\": \"driver\",\n    \"senderId\": \"driver-001\",\n    \"at\": \"2026-05-20T00:00:00.000Z\"\n  }\n}"
+        },
+        "url": { "raw": "{{base_url}}/emit/trip", "host": ["{{base_url}}"], "path": ["emit", "trip"] }
+      }
+    },
+    {
+      "name": "Chat read to User",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-api-key", "value": "{{api_key}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userType\": \"customer\",\n  \"userId\": \"customer-001\",\n  \"eventName\": \"chat:read\",\n  \"payload\": {\n    \"id\": \"msg-12345\",\n    \"tripId\": \"trip-001\",\n    \"senderType\": \"driver\",\n    \"senderId\": \"driver-001\",\n    \"at\": \"2026-05-20T00:00:00.000Z\"\n  }\n}"
+        },
+        "url": { "raw": "{{base_url}}/emit/user", "host": ["{{base_url}}"], "path": ["emit", "user"] }
+      }
+    },
+    {
+      "name": "Notification to User",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-api-key", "value": "{{api_key}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userType\": \"customer\",\n  \"userId\": \"customer-001\",\n  \"eventName\": \"notification:new\",\n  \"payload\": {\n    \"id\": \"noti-12345\",\n    \"category\": \"booking\",\n    \"title\": \"Trip update\",\n    \"body\": \"Your trip status has changed\",\n    \"tripId\": \"trip-001\",\n    \"at\": \"2026-05-20T00:00:00.000Z\"\n  }\n}"
+        },
+        "url": { "raw": "{{base_url}}/emit/user", "host": ["{{base_url}}"], "path": ["emit", "user"] }
+      }
+    },
+    {
+      "name": "Notification to Trip",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-api-key", "value": "{{api_key}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tripId\": \"trip-001\",\n  \"eventName\": \"notification:new\",\n  \"payload\": {\n    \"id\": \"noti-12345\",\n    \"category\": \"booking\",\n    \"title\": \"Trip update\",\n    \"body\": \"Your trip status has changed\",\n    \"tripId\": \"trip-001\",\n    \"at\": \"2026-05-20T00:00:00.000Z\"\n  }\n}"
+        },
+        "url": { "raw": "{{base_url}}/emit/trip", "host": ["{{base_url}}"], "path": ["emit", "trip"] }
+      }
+    },
+    {
+      "name": "Emit Broadcast",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"eventName\": \"system:notice\",\n  \"payload\": {\n    \"message\": \"maintenance\"\n  },\n  \"userType\": \"customer\",\n  \"targetRoom\": \"trip_trip-9\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/emit/broadcast",
+          "host": ["{{base_url}}"],
+          "path": ["emit", "broadcast"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8605"
+    },
+    {
+      "key": "api_key",
+      "value": "testsecret"
+    }
+  ]
+}
