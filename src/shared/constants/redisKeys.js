@@ -1,5 +1,5 @@
 function userSocketKey(userType, userId) {
-  return `socket:uid:${userType}:${userId}`;
+  return `socket:user:${userType}:${userId}`;
 }
 
 function socketInfoKey(socketId) {
@@ -11,7 +11,7 @@ function roomSocketKey(roomName) {
 }
 
 function locationKey(userId) {
-  return `location:${userId}`;
+  return `socket:loc:${userId}`;
 }
 
 module.exports = {
