@@ -9,7 +9,12 @@ function createSafeRedisOps(redis, loggerPort) {
   }
 
   return {
-    hset: (key, value) => run("hset", () => redis.hset(key, value), { key }),
+    hset: (key, value) => {
+      const args = typeof value === "object" && value !== null && !(value instanceof Map)
+        ? Object.entries(value).flat()
+        : [value];
+      return run("hset", () => redis.hset(key, ...args), { key });
+    },
     sadd: (key, ...values) =>
       run("sadd", () => redis.sadd(key, ...values), { key }),
     srem: (key, ...values) =>

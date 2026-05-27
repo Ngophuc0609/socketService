@@ -13,8 +13,12 @@
         "header": [],
         "url": {
           "raw": "{{base_url}}/health",
-          "host": ["{{base_url}}"],
-          "path": ["health"]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "health"
+          ]
         }
       }
     },
@@ -25,8 +29,12 @@
         "header": [],
         "url": {
           "raw": "{{base_url}}/metrics",
-          "host": ["{{base_url}}"],
-          "path": ["metrics"]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "metrics"
+          ]
         }
       }
     },
@@ -37,8 +45,12 @@
         "header": [],
         "url": {
           "raw": "{{base_url}}/dashboard",
-          "host": ["{{base_url}}"],
-          "path": ["dashboard"]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "dashboard"
+          ]
         }
       }
     },
@@ -49,8 +61,12 @@
         "header": [],
         "url": {
           "raw": "{{base_url}}/connections?type=driver",
-          "host": ["{{base_url}}"],
-          "path": ["connections"],
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "connections"
+          ],
           "query": [
             {
               "key": "type",
@@ -82,8 +98,13 @@
         },
         "url": {
           "raw": "{{base_url}}/driver/event",
-          "host": ["{{base_url}}"],
-          "path": ["driver", "event"]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "driver",
+            "event"
+          ]
         }
       }
     },
@@ -109,8 +130,13 @@
         },
         "url": {
           "raw": "{{base_url}}/customer/event",
-          "host": ["{{base_url}}"],
-          "path": ["customer", "event"]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "customer",
+            "event"
+          ]
         }
       }
     },
@@ -136,8 +162,13 @@
         },
         "url": {
           "raw": "{{base_url}}/emit/user",
-          "host": ["{{base_url}}"],
-          "path": ["emit", "user"]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "emit",
+            "user"
+          ]
         }
       }
     },
@@ -163,8 +194,13 @@
         },
         "url": {
           "raw": "{{base_url}}/emit/trip",
-          "host": ["{{base_url}}"],
-          "path": ["emit", "trip"]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "emit",
+            "trip"
+          ]
         }
       }
     },
@@ -173,14 +209,31 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "x-api-key", "value": "{{api_key}}", "type": "text" },
-          { "key": "Content-Type", "value": "application/json", "type": "text" }
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"tripId\": \"trip-001\",\n  \"eventName\": \"chat:message\",\n  \"payload\": {\n    \"id\": \"msg-12345\",\n    \"tripId\": \"trip-001\",\n    \"senderType\": \"driver\",\n    \"senderId\": \"driver-001\",\n    \"message\": \"Driver is arriving in 3 minutes\",\n    \"at\": \"2026-05-20T00:00:00.000Z\"\n  }\n}"
         },
-        "url": { "raw": "{{base_url}}/emit/trip", "host": ["{{base_url}}"], "path": ["emit", "trip"] }
+        "url": {
+          "raw": "{{base_url}}/emit/trip",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "emit",
+            "trip"
+          ]
+        }
       }
     },
     {
@@ -188,14 +241,31 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "x-api-key", "value": "{{api_key}}", "type": "text" },
-          { "key": "Content-Type", "value": "application/json", "type": "text" }
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"tripId\": \"trip-001\",\n  \"eventName\": \"chat:typing\",\n  \"payload\": {\n    \"tripId\": \"trip-001\",\n    \"senderType\": \"driver\",\n    \"senderId\": \"driver-001\",\n    \"at\": \"2026-05-20T00:00:00.000Z\"\n  }\n}"
         },
-        "url": { "raw": "{{base_url}}/emit/trip", "host": ["{{base_url}}"], "path": ["emit", "trip"] }
+        "url": {
+          "raw": "{{base_url}}/emit/trip",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "emit",
+            "trip"
+          ]
+        }
       }
     },
     {
@@ -203,14 +273,31 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "x-api-key", "value": "{{api_key}}", "type": "text" },
-          { "key": "Content-Type", "value": "application/json", "type": "text" }
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"userType\": \"customer\",\n  \"userId\": \"customer-001\",\n  \"eventName\": \"chat:read\",\n  \"payload\": {\n    \"id\": \"msg-12345\",\n    \"tripId\": \"trip-001\",\n    \"senderType\": \"driver\",\n    \"senderId\": \"driver-001\",\n    \"at\": \"2026-05-20T00:00:00.000Z\"\n  }\n}"
         },
-        "url": { "raw": "{{base_url}}/emit/user", "host": ["{{base_url}}"], "path": ["emit", "user"] }
+        "url": {
+          "raw": "{{base_url}}/emit/user",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "emit",
+            "user"
+          ]
+        }
       }
     },
     {
@@ -218,14 +305,31 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "x-api-key", "value": "{{api_key}}", "type": "text" },
-          { "key": "Content-Type", "value": "application/json", "type": "text" }
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"userType\": \"customer\",\n  \"userId\": \"customer-001\",\n  \"eventName\": \"notification:new\",\n  \"payload\": {\n    \"id\": \"noti-12345\",\n    \"category\": \"booking\",\n    \"title\": \"Trip update\",\n    \"body\": \"Your trip status has changed\",\n    \"tripId\": \"trip-001\",\n    \"at\": \"2026-05-20T00:00:00.000Z\"\n  }\n}"
         },
-        "url": { "raw": "{{base_url}}/emit/user", "host": ["{{base_url}}"], "path": ["emit", "user"] }
+        "url": {
+          "raw": "{{base_url}}/emit/user",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "emit",
+            "user"
+          ]
+        }
       }
     },
     {
@@ -233,14 +337,31 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "x-api-key", "value": "{{api_key}}", "type": "text" },
-          { "key": "Content-Type", "value": "application/json", "type": "text" }
+          {
+            "key": "x-api-key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"tripId\": \"trip-001\",\n  \"eventName\": \"notification:new\",\n  \"payload\": {\n    \"id\": \"noti-12345\",\n    \"category\": \"booking\",\n    \"title\": \"Trip update\",\n    \"body\": \"Your trip status has changed\",\n    \"tripId\": \"trip-001\",\n    \"at\": \"2026-05-20T00:00:00.000Z\"\n  }\n}"
         },
-        "url": { "raw": "{{base_url}}/emit/trip", "host": ["{{base_url}}"], "path": ["emit", "trip"] }
+        "url": {
+          "raw": "{{base_url}}/emit/trip",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "emit",
+            "trip"
+          ]
+        }
       }
     },
     {
@@ -265,8 +386,13 @@
         },
         "url": {
           "raw": "{{base_url}}/emit/broadcast",
-          "host": ["{{base_url}}"],
-          "path": ["emit", "broadcast"]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "emit",
+            "broadcast"
+          ]
         }
       }
     }
@@ -274,11 +400,11 @@
   "variable": [
     {
       "key": "base_url",
-      "value": "http://localhost:8605"
+      "value": "http://localhost:8606"
     },
     {
       "key": "api_key",
-      "value": "testsecret"
+      "value": "local-secret"
     }
   ]
 }

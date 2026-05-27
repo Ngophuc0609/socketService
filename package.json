@@ -8,6 +8,8 @@
         "dev": "nodemon server.js",
         "start:modular": "node src/index.js",
         "dev:modular": "nodemon src/index.js",
+        "start:dev": "node -r dotenv/config src/index.js dotenv_config_path=.env.development",
+        "dev:dev": "nodemon -r dotenv/config src/index.js dotenv_config_path=.env.development",
         "test": "node --test test/**/*.test.js",
         "test:preflight:staging": "node scripts/phase6/runPreflightCheck.js",
         "test:contract:staging": "node scripts/phase6/runContractTest.js",
